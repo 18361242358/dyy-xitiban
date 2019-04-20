@@ -44,6 +44,31 @@ print(math.modf(3))
 print(math.copysign(2,-3))
 print(math.copysign(-2,3))
 
-'''
+
 print(math.e)
 print(math.pi)
+'''
+import random
+# # random() 获取0-1之间的随机小数 包含0 不包含1
+# for i in range(10):
+'''
+    # range可迭代 用for
+    # print (random.random())
+    # 随机指定开始和结束之间的整数值
+    # print(random.randint(1,6))
+    # random.randrange()获取指定开始和结束之间的值，可以指定间隔值
+    # print(random.randrange(1,9,2))
+ '''
+# choice() 随机获取列表的值
+# print(random.choice([10,24,4,15]))
+
+# shuffle() 随机打乱序列，返回值是none
+'''
+list1 = ([10,24,4,15])
+print(list1)
+print(random.shuffle(list1))
+print(list1)
+'''
+#  uniform() 随机获取指定范围内的值（包括小数）
+for n in range(10):
+    print(random.uniform(1,9)) 
