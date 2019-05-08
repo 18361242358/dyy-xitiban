@@ -25,34 +25,37 @@ ls = [1,[1,2,["图灵"]],3,5,8,9]
 ls[1][2][0] = "dana"
 print(ls)
 '''
-#用户名问题
-'''
-user_pass = {"zhangsan":111,"lisi":222,"wangwu":333}
-usernames = user_pass.keys()
-yonghuming = input("请输入用户名")
-mima = input("请输入密码")
-def user_creat(yonghuming,mima):
-    if yonghuming in usernames:
+#用户名问题 （自己的）
+
+user_pass = {"zhangsan":"111","lisi":"222","wangwu":"333"}
+
+def user_creat(username,password):
+    usernames = user_pass.keys()
+    if username in usernames:
         print("用户名已注册")
     else:
+        user_pass[username] = password
         print("你注册成功了")
-    user_pass[yonghuming] = mima
-    print(user_pass)
-#user_creat(yonghuming,mima)
+user_creat(input("请输入用户名"),input("请输入密码"))
+print(user_pass)
 
-user_pass = {"zhangsan":"111","lisi":222,"wangwu":333}
-usernames = user_pass.keys()
-#yonghuming = input("请输入用户名")
-#mima = input("请输入密码")
-def user_login(yonghuming,mima):
-    if yonghuming not in usernames or mima != user_pass[yonghuming]:
-        print("用户名或密码错误")
+
+def user_login(username,password):
+    usernames = user_pass.keys()
+    if username not in usernames :
+        print("用户名不存在")
+
     else:
-        print("登录成功")
-user_login("zhangsan","111")
-'''
-
-user_pass = {"zhangsan":"111","lisi":222,"wangwu":333}
+        if password != user_pass[username]:
+            print("密码错误")
+        else:
+            print("登录成功")
+#user_login("lisi",222)
+user_login(input("请输入用户名"),(input("请输入密码")))
+print(user_pass)
+''''
+#示范
+user_pass = {"zhangsan":111,"lisi":222,"wangwu":333}
 def creat_user(username,password):
     usernames = user_pass.keys()
     if username in usernames:
@@ -60,7 +63,7 @@ def creat_user(username,password):
     else:
         user_pass[username] = password
         print("你注册成功了")
-#creat_user("dyy",123)
+creat_user("dyy",123)
 print(user_pass)
 
 def login_user(username,password):
@@ -69,7 +72,8 @@ def login_user(username,password):
         print ("用户名或密码不正确")
     else:
         print("成功")
-login_user("zhangsan","111")
+login_user("dyy",123)
 
+'''
 
 
