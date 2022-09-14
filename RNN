@@ -1,0 +1,115 @@
+import collections
+import d2lzh as d2l
+from mxnet import gluon, init, nd
+from mxnet.contrib import text
+from mxnet.gluon import data as gdata, loss as gloss, nn, rnn, utils as gutils
+import os
+import random
+import tarfile
+import mxnet as mx
+
+def read_das(folder='train'):  # 本函数已保存在d2lzh包中方便以后使用
+    data = []
+    for label in ['danger', 'normal']:
+        folder_name = os.path.join('../data/', folder, label)
+        for file in os.listdir(folder_name):
+            with open(os.path.join(folder_name, file), 'rb') as f:
+                review = f.read().decode('utf-8').replace('\n', '').lower()
+                if label == 'danger':
+                    data.append([review, 1])
+                else:
+                    data.append([review, 0])
+    random.shuffle(data)
+    return data
+
+#train_data = read_das('train')#, read_imdb('test')
+train_data, test_data = read_das('train'), read_das('test')
+
+def get_tokenized_das(data):  # 本函数已保存在d2lzh包中方便以后使用
+    def tokenizer(text):
+        return [tok.lower() for tok in text.split(' ')]
+    return [tokenizer(review) for review, _ in data]
+
+def get_vocab_das(data):  # 本函数已保存在d2lzh包中方便以后使用
+    tokenized_data = get_tokenized_das(data)
+    counter = collections.Counter([tk for st in tokenized_data for tk in st])
+    return text.vocab.Vocabulary(counter, min_freq=5)
+
+vocab = get_vocab_das(train_data)
+'# words in vocab:', len(vocab)
+
+
+def preprocess_das(data, vocab):  # 本函数已保存在d2lzh包中方便以后使用
+    max_l = 1000  # 将每条评论通过截断或者补0，使得长度变成500
+
+    def pad(x):
+        return x[:max_l] if len(x) > max_l else x + [0] * (max_l - len(x))
+
+    tokenized_data = get_tokenized_das(data)
+    features = nd.array([pad(vocab.to_indices(x)) for x in tokenized_data])
+    labels = nd.array([score for _, score in data])
+    return features, labels
+
+batch_size = 64
+train_set = gdata.ArrayDataset(*preprocess_das(train_data, vocab))
+test_set = gdata.ArrayDataset(*preprocess_das(test_data, vocab))
+train_iter = gdata.DataLoader(train_set, batch_size, shuffle=True)
+test_iter = gdata.DataLoader(test_set, batch_size)
+
+for X, y in train_iter:
+    print('X', X.shape, 'y', y.shape)
+    break
+'#batches:', len(train_iter)
+
+class BiRNN(nn.Block):
+    def __init__(self, vocab, embed_size, num_hiddens, num_layers, **kwargs):
+        super(BiRNN, self).__init__(**kwargs)
+        self.embedding = nn.Embedding(len(vocab), embed_size)
+        # bidirectional设为True即得到双向循环神经网络
+        self.encoder = rnn.LSTM(num_hiddens, num_layers=num_layers,
+                                bidirectional=True, input_size=embed_size)
+        self.decoder = nn.Dense(2)
+
+    def forward(self, inputs):
+        # inputs的形状是(批量大小, 词数)，因为LSTM需要将序列作为第一维，所以将输入转置后
+        # 再提取词特征，输出形状为(词数, 批量大小, 词向量维度)
+        embeddings = self.embedding(inputs.T)
+        # rnn.LSTM只传入输入embeddings，因此只返回最后一层的隐藏层在各时间步的隐藏状态。
+        # outputs形状是(词数, 批量大小, 2 * 隐藏单元个数)
+        outputs = self.encoder(embeddings)
+        # 连结初始时间步和最终时间步的隐藏状态作为全连接层输入。它的形状为
+        # (批量大小, 4 * 隐藏单元个数)。
+        encoding = nd.concat(outputs[0], outputs[-1])
+        outs = self.decoder(encoding)
+        return outs
+
+embed_size, num_hiddens, num_layers, ctx = 100, 100, 2, d2l.try_all_gpus()
+net = BiRNN(vocab, embed_size, num_hiddens, num_layers)
+net.initialize(init.Xavier(), ctx=ctx)
+
+lr, num_epochs = 0.01, 5
+trainer = gluon.Trainer(net.collect_params(), 'adam', {'learning_rate': lr})
+loss = gloss.SoftmaxCrossEntropyLoss()
+d2l.train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs)
+
+def predict_sentiment(net, vocab, sentence):
+    sentence = nd.array(vocab.to_indices(sentence), ctx=d2l.try_gpu())
+    label = nd.argmax(net(sentence.reshape((1, -1))), axis=1)
+    if label.asscalar() == 1:
+        return 'danger'
+    if label.asscalar() == 0:
+        return 'normal'
+    else:
+        return 'inference'
+
+predict_sentiment(net, vocab, ['28.1','28.1','28.0','28.2','28.4','28.1','28.1','28.0','28.2','28.1','28.3','28.0'])
+
+predict_sentiment(net, vocab, ['49.4','49.5','49.3','49.4','49.4','49.7','49.4','49.4','49.0','49.0','49.7','49.5'])
+
+predict_sentiment(net, vocab, ['63.6','64.0','65.0','67.2','67.9','69.4','70.0','71.1','72.0','73.4','74.6','75.2'])
+
+predict_sentiment(net, vocab, ['188.4','188.7','189.2','189.6','187.7','188.3','188.4','188.9','188.5','186.3','187.2','186.1'])
+
+predict_sentiment(net, vocab, ['63.4','64.1','64.9','67.0','67.5','69.1','70.5','71.7','72.1','73.9','74.8','75.7'])
+
+predict_sentiment(net, vocab, ['71.9','72.1','72.0','71.9','71.8','72.4','71.6','71.1','72.2','72.5','72.6','72.1'])
